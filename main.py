@@ -1,6 +1,9 @@
 import copy
 import os
-import time
+import random
+import sys
+
+from numpy import Infinity
 
 gameData = {
     "A1": None,
@@ -14,7 +17,9 @@ gameData = {
     "C3": None,
 }
 
-IAStart = False
+Combinations = [['A1', 'C3', 'C1', 'C2'],['A2','C1','A1', 'A3']]
+
+IAStart = True
 IAvsIA = False
 
 startSymbol = "X"
@@ -75,22 +80,6 @@ def printGame(currentGameData = gameData):
     for i in range(3):
         print(letters[i]+" "+getSymbol(letters[i],"1",currentGameData) + " | " + getSymbol(letters[i],"2",currentGameData) + " | " + getSymbol(letters[i],"3",currentGameData))
 
-def getCross(gameData):
-    count = 0
-    for i in range(0,3):
-        for x in range(1,4):
-            if gameData[letters[i] + str(x)] == "X":
-                count += 1
-    return count
-
-def getCircle(gameData):
-    count = 0
-    for i in range(0,3):
-        for x in range(1,4):
-            if gameData[letters[i] + str(x)] == "O":
-                count += 1
-    return count
-
 def getFreeSpaces(gameData):
     spaces = []
     for i in range(0,3):
@@ -99,73 +88,60 @@ def getFreeSpaces(gameData):
                 spaces.append(letters[i] + str(x))
     return spaces
 
-def getStartSymbol(gameData):
-    if startSymbol == "O":
-        return getCircle(gameData)
-    return getCross(gameData)
-
-def getSecondSymbol(gameData):
-    if startSymbol == "O":
-        return getCross(gameData)
-    return getCircle(gameData)
-
 def IAvsIAfun(currentGameData):
     while(checkState(currentGameData) == None):
         printGame(currentGameData)
         print("Player 1")
-        IAPlay = getIAPlay(copy.deepcopy(currentGameData),True,startSymbol)
+        if len(getFreeSpaces(currentGameData)) == 9:
+            IAPlay = random.choice(getFreeSpaces(currentGameData))
+        else :IAPlay = minimax(copy.deepcopy(currentGameData),True,startSymbol)[0]
         currentGameData[IAPlay] = startSymbol
         printGame(currentGameData)
         print("Player 2")
-        IAPlay = getIAPlay(copy.deepcopy(currentGameData),True,secondSymbol)
+        IAPlay = minimax(copy.deepcopy(currentGameData),True,secondSymbol)[0]
         currentGameData[IAPlay] = secondSymbol
         printGame(currentGameData)
-    print("The winner is: " + str(checkState(currentGameData)))
+    return checkState(currentGameData)
 
-def getIAPlay(currentGameData,iteration,IASymbol):
-    play = ""
-    otherSymbol = "O"
-    if IASymbol == "O":
-        otherSymbol = "X"
-    if getStartSymbol(currentGameData) > getSecondSymbol(currentGameData):
-        play = secondSymbol
+def minimax(currentGameData,Player,IASymbol):
+    #we put the current player at his worst possible score
+    #if the IA Win the score is positive
+    #if the IA Lose the score is negative
+    #so the player want the IA to have a negative score
+    if Player: 
+        best = [None, -Infinity]
     else:
-        play = startSymbol
-    freeSpaces = getFreeSpaces(currentGameData)
-    state = checkState(currentGameData)
-    if state == IASymbol:
-        return 2
-    elif state == otherSymbol:
-        return -2
-    if len(freeSpaces) == 0:
-        return 1
-    playEnd = {}
-    
-    for space in freeSpaces:
-        newGameData = copy.deepcopy(currentGameData)
-        newGameData[space] = play
-        playEnd[space] = getIAPlay(newGameData,False,IASymbol)
-
-    result = sum(playEnd.values())
-    if not iteration:
-        return result
-    finalPlay = ""
-    print(playEnd)
-    for i in playEnd:
-        print(i)
-        if finalPlay == "":
-            finalPlay = i
+        best = [None, Infinity]
+    if checkState(currentGameData) != None:#if the game is over
+        if checkState(currentGameData) == IASymbol:
+            return [None, 1]
+        elif checkState(currentGameData) != False:
+            return [None, -1]
+        return [None, 0]
+    for space in getFreeSpaces(currentGameData):#for each possible move
+        temp = copy.deepcopy(currentGameData)
+        if Player:
+            temp[space] = IASymbol
         else:
-            if playEnd[i] > playEnd[finalPlay]:
-                finalPlay = i
-    return finalPlay
-
+            if IASymbol == "X":
+                temp[space] = "O"
+            else:
+                temp[space] = "X"
+        move = minimax(temp,not Player,IASymbol)
+        if Player:#if the player is the IA we want the highest score to be played
+            if move[1] > best[1]:
+                best = [space, move[1]]
+        else: #if the player is the other player we want the lowest score to be played
+            if move[1] < best[1]:
+                best = [space, move[1]]
+    return best
+        
 if not IAvsIA:
     while(checkState() == None):
         printGame()
         print("Player 1")
         if IAStart:
-            IAPlay = getIAPlay(gameData,True,startSymbol)
+            IAPlay = minimax(copy.deepcopy(gameData),True,startSymbol)[0]
             gameData[IAPlay] = startSymbol
         else:
             play = input("Enter the position: ")
@@ -178,11 +154,14 @@ if not IAvsIA:
             play = input("Enter the position: ")
             gameData[play] = secondSymbol
         else:
-            IAPlay = getIAPlay(gameData,True,secondSymbol)
+            IAPlay = minimax(copy.deepcopy(gameData),True,secondSymbol)[0]
             gameData[IAPlay] = secondSymbol
+        printGame()
         if(checkState() != None):
             break
     print("The winner is: " + str(checkState()))
 else:
-    while(True):
-        IAvsIAfun(copy.deepcopy(gameData))
+    value = False
+    while(value == False):
+        value = IAvsIAfun(copy.deepcopy(gameData))
+    print("error")
